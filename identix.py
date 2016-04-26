@@ -90,7 +90,12 @@ def read_arguments():
 	minimum_filesize = 0 if (args_list.min_size is None) else args_list.min_size
 
 	# return arguments
-	return scan_dir_list,file_include_regexp_list,minimum_filesize,args_list.progress,args_list.report_file
+	return (
+		scan_dir_list,
+		file_include_regexp_list,
+		minimum_filesize,
+		args_list.progress,args_list.report_file
+	)
 
 def scan_dir_list_recursive(scan_dir_list,file_include_regexp_list,minimum_filesize,progress_display):
 	# setup file match glob function
