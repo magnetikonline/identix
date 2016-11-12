@@ -29,15 +29,16 @@ class Console:
 		YELLOW = '\033[33m'
 
 	progress_enabled = False
-	progress_active = False
-	terminal_size = None
 
-	def get_terminal_size(self):
+	_progress_active = False
+	_terminal_size = None
+
+	def _get_terminal_size(self):
 		now_timestamp = int(time.time())
 
 		if (
-			(Console.terminal_size is None) or
-			((Console.terminal_size[0] + Console.TERMINAL_SIZE_CACHE_SECONDS) <= now_timestamp)
+			(Console._terminal_size is None) or
+			((Console._terminal_size[0] + Console.TERMINAL_SIZE_CACHE_SECONDS) <= now_timestamp)
 		):
 			# (re-)fetch current terminal dimensions
 			data = fcntl.ioctl(
@@ -46,14 +47,14 @@ class Console:
 				Console.STRUCT_PACK_ZERO_ZERO
 			)
 
-			Console.terminal_size = (
+			Console._terminal_size = (
 				now_timestamp,
 				struct.unpack('HH',data) # stored as rows X columns
 			)
 
-		return Console.terminal_size[1]
+		return Console._terminal_size[1]
 
-	def get_text_truncated(self,full_text,max_length):
+	def _get_text_truncated(self,full_text,max_length):
 		full_text_length = len(full_text)
 		if (full_text_length < max_length):
 			# no need for truncation
@@ -76,26 +77,26 @@ class Console:
 			full_text[0 - split_size:].strip()
 		)
 
-	def stdout_write_flush(self,text):
+	def _stdout_write_flush(self,text):
 		sys.stdout.write(text)
 		sys.stdout.flush()
 
-	def progress_finish(self):
-		if (Console.progress_active):
+	def _progress_finish(self):
+		if (Console._progress_active):
 			# clean up progress line from terminal, reset forecolor
-			Console.progress_active = False
-			self.stdout_write_flush(
+			Console._progress_active = False
+			self._stdout_write_flush(
 				Console.CURSOR_START_LINE_CLEAR_RIGHT +
 				Console.TERM_COLOR.RESET
 			)
 
 	def exit_error(self,message):
-		self.progress_finish()
+		self._progress_finish()
 		sys.stderr.write('Error: {0}\n'.format(message))
 		sys.exit(1)
 
 	def write(self,text = ''):
-		self.progress_finish()
+		self._progress_finish()
 		print(text)
 
 	def progress(self,text):
@@ -107,21 +108,21 @@ class Console:
 			return
 
 		# fetch terminal height and width
-		void,max_text_width = self.get_terminal_size()
+		void,max_text_width = self._get_terminal_size()
 		write_list = []
 
-		if (not Console.progress_active):
+		if (not Console._progress_active):
 			# commence progress mode
-			Console.progress_active = True
+			Console._progress_active = True
 			write_list.append(Console.TERM_COLOR.YELLOW)
 
 		# write progress message
 		write_list.append(
 			Console.CURSOR_START_LINE_CLEAR_RIGHT +
-			self.get_text_truncated(text,max_text_width)
+			self._get_text_truncated(text,max_text_width)
 		)
 
-		self.stdout_write_flush(''.join(write_list))
+		self._stdout_write_flush(''.join(write_list))
 
 def read_arguments():
 	console = Console()
