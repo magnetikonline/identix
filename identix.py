@@ -60,8 +60,8 @@ class Console:
 			# no need for truncation
 			return full_text
 
-		# determine dot gap length - 10% of max length, plus two space characters
-		dot_gap = int(max_length * 0.01) + 2
+		# determine dot gap length - 5% of max length, plus two space characters
+		dot_gap = int(max_length * 0.05) + 2
 		if (dot_gap < 3):
 			dot_gap = 3
 
