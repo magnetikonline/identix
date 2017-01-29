@@ -65,7 +65,7 @@ class Console:
 		if (dot_gap < 3):
 			dot_gap = 3
 
-		# calc split size - if too small just truncate and bail
+		# calculate split size - if too small just truncate and bail
 		split_size = int((max_length - dot_gap) / 2)
 		if (split_size < 5):
 			return full_text[:max_length].strip()
@@ -83,7 +83,7 @@ class Console:
 
 	def _progress_finish(self):
 		if (Console._progress_active):
-			# clean up progress line from terminal, reset forecolor
+			# clean up progress line from terminal, reset foreground color
 			Console._progress_active = False
 			self._stdout_write_flush(
 				Console.CURSOR_START_LINE_CLEAR_RIGHT +
@@ -372,11 +372,10 @@ def main():
 		scan_dir_list,
 		file_include_regexp_list,
 		minimum_filesize,
-		progress_display,
+		Console.progress_enabled,
 		duplicate_report_file
 	) = read_arguments()
 
-	Console.progress_enabled = progress_display
 	console = Console()
 
 	# scan source directories for files to compare, grouped by filesize
