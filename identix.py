@@ -4,6 +4,7 @@ import argparse
 import fcntl
 import fnmatch
 import hashlib
+import json
 import os
 import os.path
 import re
@@ -13,6 +14,9 @@ import termios
 import time
 
 FILE_CHUNK_MD5_SIZE = 4096
+REPORT_FILE_FORMAT_TEXT = 'text'
+REPORT_FILE_FORMAT_JSON = 'JSON'
+REPORT_FILE_FORMAT_JSON_SEPARATORS = (',',':')
 
 
 class Console:
@@ -159,6 +163,12 @@ def read_arguments():
 		help = 'output duplicate report to file, rather than console'
 	)
 
+	parser.add_argument(
+		'--report-file-format',
+		choices = [REPORT_FILE_FORMAT_TEXT,REPORT_FILE_FORMAT_JSON],
+		help = 'output format of duplicate report file'
+	)
+
 	arg_list = parser.parse_args()
 
 	# ensure all scan dirs exist
@@ -203,13 +213,25 @@ def read_arguments():
 	if (arg_list.min_size is not None):
 		minimum_filesize = arg_list.min_size
 
+	# the [--report-file-format] option can only be used when writing report to file
+	if (
+		(arg_list.report_file is None) and
+		(arg_list.report_file_format is not None)
+	):
+		console.exit_error('Argument [--report-file-format] only valid with [--report-file]')
+
 	# return arguments
 	return (
 		set(scan_dir_list),
 		file_include_regexp_list,
 		minimum_filesize,
 		arg_list.progress,
-		arg_list.report_file
+		arg_list.report_file,
+		(
+			False
+			if (arg_list.report_file_format is None)
+			else (arg_list.report_file_format == REPORT_FILE_FORMAT_JSON)
+		)
 	)
 
 def scan_dir_list_recursive(scan_dir_list,file_include_regexp_list,minimum_filesize):
@@ -313,54 +335,82 @@ def calc_file_group_size_checksum(file_group_size_collection):
 		for file_item_size,file_list in file_group_size_collection.iteritems() if (len(file_list) > 1)
 	}
 
-def generate_report(file_group_checksum_collection,duplicate_report_file):
+def generate_report(file_group_checksum_collection,report_file,report_format_json):
 	console = Console()
 	report_file_handle = None
 	duplicate_file_count = 0
 
-	def write_report_line(report_line = ''):
+	def write_report_line(report_line = '',line_feed = True):
 		# write line either to console, or file
-		if (duplicate_report_file is None):
+		if (report_file is None):
 			console.write(report_line)
 
 		else:
-			report_file_handle.write(report_line + '\n')
+			report_file_handle.write(report_line + ('\n' if line_feed else ''))
 
 	# iterate over file item size collection
 	for file_item_size,file_checksum_collection in file_group_checksum_collection.iteritems():
 		# iterate over file checksum collection
 		for file_checksum,file_list in file_checksum_collection.iteritems():
 			if (duplicate_file_count):
-				# add line break between previous duplicate file grouping
-				write_report_line()
+				if (report_format_json):
+					# next file duplicate JSON object item
+					write_report_line(',')
+
+				else:
+					# add line break between previous duplicate file grouping
+					write_report_line()
 
 			else:
 				# start of report - open file, or write header to console
-				if (duplicate_report_file is not None):
+				if (report_file is not None):
 					try:
-						report_file_handle = open(duplicate_report_file,'w')
+						report_file_handle = open(report_file,'w')
 
 					except IOError:
-						console.exit_error('Unable to write report to [{0}]'.format(duplicate_report_file))
+						console.exit_error('Unable to write report to [{0}]'.format(report_file))
+
+					if (report_format_json):
+						# open JSON array
+						write_report_line('[')
 
 				else:
 					console.write('Duplicate files found:\n')
 
-			# write duplicate file group header
-			write_report_line('{0} @ {1} bytes'.format(file_checksum,file_item_size))
+			duplicate_file_count += 1
+			if (report_format_json):
+				# writing to report file in JSON format
+				write_report_line(
+					json.dumps(
+						{
+							'md5': file_checksum,
+							'size': file_item_size,
+							'fileList': file_list
+						},
+						separators = REPORT_FILE_FORMAT_JSON_SEPARATORS
+					),
+					False
+				)
 
-			for file_item in file_list:
-				# output identical file size/checksum items
-				write_report_line('\t{0}'.format(file_item))
-				duplicate_file_count += 1
+			else:
+				# write duplicate file group header
+				write_report_line('{0} @ {1} bytes'.format(file_checksum,file_item_size))
 
-	if (duplicate_report_file is not None):
+				for file_item in file_list:
+					# output identical file size/checksum items
+					write_report_line('\t{0}'.format(file_item))
+
+	if (report_file is not None):
 		# if output to file close handle
 		if (report_file_handle is not None):
+			if (report_format_json):
+				# close JSON array
+				write_report_line('\n]')
+
 			report_file_handle.close()
 
 	else:
-		# add additional console line break after report output
+		# add final line break after report output
 		console.write()
 
 	# return total number of duplicate files found
@@ -373,7 +423,8 @@ def main():
 		file_include_regexp_list,
 		minimum_filesize,
 		Console.progress_enabled,
-		duplicate_report_file
+		duplicate_report_file,
+		duplicate_report_as_json
 	) = read_arguments()
 
 	console = Console()
@@ -395,7 +446,8 @@ def main():
 	# generate duplicate report to screen or file
 	duplicate_file_count = generate_report(
 		file_group_checksum_collection,
-		duplicate_report_file
+		duplicate_report_file,
+		duplicate_report_as_json
 	)
 
 	# write final duplicate counts
