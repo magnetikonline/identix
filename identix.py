@@ -296,10 +296,10 @@ def calc_file_group_size_checksum(file_group_size_collection):
 
 			# new file checksum index encountered?
 			if (file_checksum not in checksum_collection):
-				checksum_collection[file_checksum] = set()
+				checksum_collection[file_checksum] = []
 
-			# add file checksum to grouped collection
-			checksum_collection[file_checksum].add(file_item)
+			# add file checksum to grouped collection list
+			checksum_collection[file_checksum].append(file_item)
 
 		# return collection of duplicate files grouped by their checksum
 		return {
