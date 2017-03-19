@@ -112,7 +112,7 @@ class Console:
 			return
 
 		# fetch terminal height and width
-		void,max_text_width = self._get_terminal_size()
+		_,max_text_width = self._get_terminal_size()
 		write_list = []
 
 		if (not Console._progress_active):
