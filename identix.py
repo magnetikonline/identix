@@ -226,7 +226,7 @@ def read_arguments():
 		file_include_regexp_list,
 		minimum_filesize,
 		arg_list.progress,
-		arg_list.report_file,
+		os.path.realpath(arg_list.report_file) if (arg_list.report_file is not None) else None,
 		(
 			False
 			if (arg_list.report_file_format is None)
@@ -401,13 +401,15 @@ def generate_report(file_group_checksum_collection,report_file,report_format_jso
 					write_report_line('\t{0}'.format(file_item))
 
 	if (report_file is not None):
-		# if output to file close handle
+		# if report to file close handle
 		if (report_file_handle is not None):
 			if (report_format_json):
 				# close JSON array
 				write_report_line('\n]')
 
+			# close file and output file written
 			report_file_handle.close()
+			console.write('Report written to: {0}\n'.format(report_file))
 
 	else:
 		# add final line break after report output
