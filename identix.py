@@ -29,8 +29,8 @@ class Console:
 	CURSOR_START_LINE_CLEAR_RIGHT = '{0}{1}'.format('\r','\x1b[K')
 
 	class TERM_COLOR:
-		RESET = '\033[39m'
-		YELLOW = '\033[33m'
+		RESET = '\x1b[0m'
+		YELLOW = '\x1b[33m'
 
 	progress_enabled = False
 
