@@ -160,13 +160,13 @@ def read_arguments():
 
 	parser.add_argument(
 		'--report-file',
-		help = 'output duplicate report to file, rather than console'
+		help = 'send duplicate report to file, rather than console'
 	)
 
 	parser.add_argument(
 		'--report-file-format',
 		choices = [REPORT_FILE_FORMAT_TEXT,REPORT_FILE_FORMAT_JSON],
-		help = 'output format of duplicate report file'
+		help = 'format of duplicate report file'
 	)
 
 	arg_list = parser.parse_args()
