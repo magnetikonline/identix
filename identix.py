@@ -6,7 +6,6 @@ import fnmatch
 import hashlib
 import json
 import os
-import os.path
 import re
 import struct
 import sys
