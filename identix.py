@@ -57,11 +57,11 @@ class Console:
 
 		return Console._terminal_size[1]
 
-	def _get_text_truncated(self,full_text,max_length):
-		full_text_length = len(full_text)
-		if (full_text_length < max_length):
+	def _get_text_truncated(self,text,max_length):
+		text_length = len(text)
+		if (text_length < max_length):
 			# no need for truncation
-			return full_text
+			return text
 
 		# determine dot gap length - 5% of max length, plus two space characters
 		dot_gap = int(max_length * 0.05) + 2
@@ -71,20 +71,20 @@ class Console:
 		# calculate split size - if too small just truncate and bail
 		split_size = int((max_length - dot_gap) / 2)
 		if (split_size < 5):
-			return full_text[:max_length].strip()
+			return text[:max_length].strip()
 
 		# return [FIRST_CHUNK ... LAST_CHUNK]
 		return '{0} {1} {2}'.format(
-			full_text[:split_size].strip(), +
+			text[:split_size].strip(), +
 			((max_length - (split_size * 2)) - 2) * '.',
-			full_text[0 - split_size:].strip()
+			text[0 - split_size:].strip()
 		)
 
 	def _stdout_write_flush(self,text):
 		sys.stdout.write(text)
 		sys.stdout.flush()
 
-	def _progress_finish(self):
+	def _progress_end(self):
 		if (Console._progress_active):
 			# clean up progress line from terminal, reset foreground color
 			Console._progress_active = False
@@ -94,12 +94,12 @@ class Console:
 			)
 
 	def exit_error(self,message):
-		self._progress_finish()
+		self._progress_end()
 		sys.stderr.write('Error: {0}\n'.format(message))
 		sys.exit(1)
 
 	def write(self,text = ''):
-		self._progress_finish()
+		self._progress_end()
 		print(text)
 
 	def progress(self,text):
@@ -119,7 +119,7 @@ class Console:
 			Console._progress_active = True
 			write_list.append(Console.TERM_COLOR.YELLOW)
 
-		# write progress message
+		# write text
 		write_list.append(
 			Console.CURSOR_START_LINE_CLEAR_RIGHT +
 			self._get_text_truncated(text,max_text_width)
