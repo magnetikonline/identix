@@ -43,7 +43,7 @@ optional arguments:
 Notes:
 - The `--include` argument evaluates *filename only*, so expects globs such as `*.jpg` or `image*.png`.
 - Omitting `--report-file` output file argument will display results directly on the console
-- Option `--report-file-format` allows `--report-file` to be written to `JSON`, format as follows:
+- Option `--report-file-format` enables `--report-file` as `JSON` - format example:
 
 	```json
 	[
@@ -62,11 +62,13 @@ Notes:
 
 ## Examples
 Scan for duplicates greater than or equal to `2048` bytes in the directories of `/dupe/path/one` and `/dupe/path/two`:
+
 ```sh
 $ ./identix.py --min-size 2048 -- /dupe/path/one /dupe/path/two
 ```
 
 Find duplicates that match file globs of `*.jpg` and `*.png` in `/my/images`, write results to `/path/to/report.txt` and display processing progress to console:
+
 ```sh
 $ ./identix.py --include "*.jpg" "*.png" --report-file /path/to/report.txt --progress -- /my/images
 ```

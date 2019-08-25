@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import argparse
 import fcntl
@@ -18,7 +18,7 @@ REPORT_FILE_FORMAT_JSON = 'JSON'
 REPORT_FILE_FORMAT_JSON_SEPARATORS = (',',':')
 
 
-class Console:
+class Console(object):
 	TERMINAL_CONNECTED = sys.stdout.isatty()
 
 	STDOUT_FILENO = sys.stdout.fileno()
@@ -27,7 +27,7 @@ class Console:
 
 	CURSOR_START_LINE_CLEAR_RIGHT = '{0}{1}'.format('\r','\x1b[K')
 
-	class TERM_COLOR:
+	class TERM_COLOR(object):
 		RESET = '\x1b[0m'
 		YELLOW = '\x1b[33m'
 
@@ -57,11 +57,11 @@ class Console:
 
 		return Console._terminal_size[1]
 
-	def _get_text_truncated(self,text,max_length):
-		text_length = len(text)
-		if (text_length < max_length):
+	def _get_text_truncated(self,full_text,max_length):
+		full_text_length = len(full_text)
+		if (full_text_length < max_length):
 			# no need for truncation
-			return text
+			return full_text
 
 		# determine dot gap length - 5% of max length, plus two space characters
 		dot_gap = int(max_length * 0.05) + 2
@@ -71,20 +71,20 @@ class Console:
 		# calculate split size - if too small just truncate and bail
 		split_size = int((max_length - dot_gap) / 2)
 		if (split_size < 5):
-			return text[:max_length].strip()
+			return full_text[:max_length].strip()
 
 		# return [FIRST_CHUNK ... LAST_CHUNK]
 		return '{0} {1} {2}'.format(
-			text[:split_size].strip(), +
+			full_text[:split_size].strip(), +
 			((max_length - (split_size * 2)) - 2) * '.',
-			text[0 - split_size:].strip()
+			full_text[0 - split_size:].strip()
 		)
 
 	def _stdout_write_flush(self,text):
 		sys.stdout.write(text)
 		sys.stdout.flush()
 
-	def _progress_end(self):
+	def _progress_finish(self):
 		if (Console._progress_active):
 			# clean up progress line from terminal, reset foreground color
 			Console._progress_active = False
@@ -94,12 +94,12 @@ class Console:
 			)
 
 	def exit_error(self,message):
-		self._progress_end()
+		self._progress_finish()
 		sys.stderr.write('Error: {0}\n'.format(message))
 		sys.exit(1)
 
 	def write(self,text = ''):
-		self._progress_end()
+		self._progress_finish()
 		print(text)
 
 	def progress(self,text):
@@ -119,7 +119,7 @@ class Console:
 			Console._progress_active = True
 			write_list.append(Console.TERM_COLOR.YELLOW)
 
-		# write text
+		# write progress message
 		write_list.append(
 			Console.CURSOR_START_LINE_CLEAR_RIGHT +
 			self._get_text_truncated(text,max_text_width)
@@ -177,10 +177,10 @@ def read_arguments():
 			console.exit_error('Invalid directory [{0}]'.format(scan_dir))
 
 	# get canonical path of each scan dir
-	scan_dir_list = map(
+	scan_dir_list = list(map(
 		lambda scandir: os.path.realpath(scandir),
 		arg_list.scandir
-	)
+	))
 
 	# ensure each given scan directory does not overlap
 	for source_index in range(len(scan_dir_list)):
@@ -300,11 +300,13 @@ def calc_file_group_size_checksum(file_group_size_collection):
 	console = Console()
 
 	def get_checksum(file_path):
-		# using MD5 algorithm for quick checksum
+		#  MD5 algo for a quick(ish) checksum
 		hasher = hashlib.md5()
-		with open(file_path) as fp:
-			for file_chunk in iter(lambda: fp.read(FILE_CHUNK_MD5_SIZE),''):
-				hasher.update(file_chunk)
+		with open(file_path,'rb') as fp:
+			chunk = fp.read(FILE_CHUNK_MD5_SIZE)
+			while (chunk):
+				hasher.update(chunk)
+				chunk = fp.read(FILE_CHUNK_MD5_SIZE)
 
 		return hasher.hexdigest()
 
@@ -325,13 +327,13 @@ def calc_file_group_size_checksum(file_group_size_collection):
 		# return collection of duplicate files grouped by their checksum
 		return {
 			file_checksum: file_list
-			for file_checksum,file_list in checksum_collection.iteritems() if (len(file_list) > 1)
+			for file_checksum,file_list in checksum_collection.items() if (len(file_list) > 1)
 		}
 
 	# discover file group size collections broken down into checksum sub-groupings
 	return {
 		file_item_size: calc_checksum_file_list(file_list)
-		for file_item_size,file_list in file_group_size_collection.iteritems() if (len(file_list) > 1)
+		for file_item_size,file_list in file_group_size_collection.items() if (len(file_list) > 1)
 	}
 
 def generate_report(file_group_checksum_collection,report_file,report_format_json):
@@ -348,9 +350,9 @@ def generate_report(file_group_checksum_collection,report_file,report_format_jso
 			report_file_handle.write(report_line + ('\n' if line_feed else ''))
 
 	# iterate over file item size collection
-	for file_item_size,file_checksum_collection in file_group_checksum_collection.iteritems():
+	for file_item_size,file_checksum_collection in file_group_checksum_collection.items():
 		# iterate over file checksum collection
-		for file_checksum,file_list in file_checksum_collection.iteritems():
+		for file_checksum,file_list in file_checksum_collection.items():
 			if (duplicate_file_count):
 				if (report_format_json):
 					# next file duplicate JSON object item
