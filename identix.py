@@ -18,7 +18,7 @@ REPORT_FILE_FORMAT_JSON = 'JSON'
 REPORT_FILE_FORMAT_JSON_SEPARATORS = (',',':')
 
 
-class Console(object):
+class Console:
 	TERMINAL_CONNECTED = sys.stdout.isatty()
 
 	STDOUT_FILENO = sys.stdout.fileno()
@@ -27,7 +27,7 @@ class Console(object):
 
 	CURSOR_START_LINE_CLEAR_RIGHT = '{0}{1}'.format('\r','\x1b[K')
 
-	class TERM_COLOR(object):
+	class TERM_COLOR:
 		RESET = '\x1b[0m'
 		YELLOW = '\x1b[33m'
 
