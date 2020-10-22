@@ -9,6 +9,7 @@ import re
 import shutil
 import sys
 import time
+from typing import Dict, List, Set
 
 FILE_CHUNK_MD5_SIZE = 4096
 REPORT_FILE_FORMAT_TEXT = "text"
@@ -115,9 +116,7 @@ class Console:
         self._write_flush("".join(write_list))
 
 
-def read_arguments():
-    console = Console()
-
+def read_arguments(console: Console):
     # create argument parser
     parser = argparse.ArgumentParser(
         description="Recursively scan one or more directories for duplicate files."
@@ -217,25 +216,32 @@ def read_arguments():
     )
 
 
-def scan_dir_list_recursive(scan_dir_list, file_include_regexp_list, minimum_filesize):
-    console = Console()
-
+def scan_dir_list_recursive(
+    console: Console,
+    scan_dir_list: List[str],
+    file_include_regexp_list: Set[re.Pattern],
+    minimum_filesize: int,
+):
     # setup file match glob function
     if file_include_regexp_list:
 
-        def is_file_glob_match(filename):
+        def is_file_glob_match(filename: str):
             # at least one file_include_regexp_list item must match the filename
             # note: using .match() here, as what's expected to be used with fnmatch.translate()
             return any(regexp.match(filename) for regexp in file_include_regexp_list)
 
     else:
 
-        def is_file_glob_match(filename):
+        def is_file_glob_match(filename: str):
             # always a match if no globs defined
             return True
 
     # setup directory processor - called recursively for each sub-dir
-    def process_file_list(base_dir, filename_list, file_group_size_collection):
+    def process_file_list(
+        base_dir: str,
+        filename_list: List[str],
+        file_group_size_collection: Dict[int, set],
+    ):
         file_added_count = 0
         console.progress("Scanning directory [{0}]".format(base_dir))
 
@@ -266,7 +272,7 @@ def scan_dir_list_recursive(scan_dir_list, file_include_regexp_list, minimum_fil
 
     # process each scan dir given in list
     total_file_count = 0
-    file_group_size_collection = {}
+    file_group_size_collection: Dict[int, set] = {}
 
     for scan_dir in scan_dir_list:
         # open scan_dir, process filename_list
@@ -279,10 +285,10 @@ def scan_dir_list_recursive(scan_dir_list, file_include_regexp_list, minimum_fil
     return total_file_count, file_group_size_collection
 
 
-def calc_file_group_size_checksum(file_group_size_collection):
-    console = Console()
-
-    def get_checksum(file_path):
+def calc_file_group_size_checksum(
+    console: Console, file_group_size_collection: Dict[int, set]
+):
+    def get_checksum(file_path: str):
         #  MD5 algo for a quick(ish) checksum
         hasher = hashlib.md5()
         with open(file_path, "rb") as fp:
@@ -293,9 +299,9 @@ def calc_file_group_size_checksum(file_group_size_collection):
 
         return hasher.hexdigest()
 
-    def calc_checksum_file_list(file_list):
+    def calc_checksum_file_list(file_list: Set[str]):
         # calc checksums for each file in given list, grouped by identical checksums
-        checksum_collection = {}
+        checksum_collection: Dict[str, list] = {}
         for file_item in file_list:
             file_checksum = get_checksum(file_item)
             console.progress("Checksum: [{0}] [{1}]".format(file_item, file_checksum))
@@ -322,14 +328,18 @@ def calc_file_group_size_checksum(file_group_size_collection):
     }
 
 
-def generate_report(file_group_checksum_collection, report_file, report_format_json):
-    console = Console()
+def generate_report(
+    console: Console,
+    file_group_checksum_collection: Dict[int, Dict[str, list]],
+    report_file_path: str,
+    report_format_json: bool,
+):
     report_file_handle = None
     duplicate_file_count = 0
 
-    def write_report_line(report_line="", line_feed=True):
+    def write_report_line(report_line: str = "", line_feed: bool = True):
         # write line either to console, or file
-        if report_file is None:
+        if report_file_path is None:
             console.write(report_line)
 
         else:
@@ -353,13 +363,13 @@ def generate_report(file_group_checksum_collection, report_file, report_format_j
 
             else:
                 # start of report - open file, or write header to console
-                if report_file is not None:
+                if report_file_path is not None:
                     try:
-                        report_file_handle = open(report_file, "w")
+                        report_file_handle = open(report_file_path, "w")
 
                     except IOError:
                         console.exit_error(
-                            "Unable to write report to [{0}]".format(report_file)
+                            "Unable to write report to [{0}]".format(report_file_path)
                         )
 
                     if report_format_json:
@@ -394,7 +404,7 @@ def generate_report(file_group_checksum_collection, report_file, report_format_j
                     # output identical file size/checksum items
                     write_report_line("\t{0}".format(file_item))
 
-    if report_file is not None:
+    if report_file_path is not None:
         # if report to file close handle
         if report_file_handle is not None:
             if report_format_json:
@@ -403,7 +413,7 @@ def generate_report(file_group_checksum_collection, report_file, report_format_j
 
             # close file and output file written
             report_file_handle.close()
-            console.write("Report written to: {0}\n".format(report_file))
+            console.write("Report written to: {0}\n".format(report_file_path))
 
     else:
         # add final line break after report output
@@ -414,21 +424,21 @@ def generate_report(file_group_checksum_collection, report_file, report_format_j
 
 
 def main():
+    console = Console()
+
     # read CLI arguments
     (
         scan_dir_list,
         file_include_regexp_list,
         minimum_filesize,
         Console.progress_enabled,
-        duplicate_report_file,
-        duplicate_report_as_json,
-    ) = read_arguments()
-
-    console = Console()
+        report_file_path,
+        report_as_json,
+    ) = read_arguments(console)
 
     # scan source directories for files to compare, grouped by filesize
     total_file_count, file_group_size_collection = scan_dir_list_recursive(
-        scan_dir_list, file_include_regexp_list, minimum_filesize
+        console, scan_dir_list, file_include_regexp_list, minimum_filesize
     )
 
     # any files found? exit if none
@@ -437,12 +447,15 @@ def main():
 
     # checksum all filesize grouped lists
     file_group_checksum_collection = calc_file_group_size_checksum(
-        file_group_size_collection
+        console, file_group_size_collection
     )
 
     # generate duplicate report to screen or file
     duplicate_file_count = generate_report(
-        file_group_checksum_collection, duplicate_report_file, duplicate_report_as_json
+        console,
+        file_group_checksum_collection,
+        report_file_path,
+        report_as_json,
     )
 
     # write final duplicate counts
