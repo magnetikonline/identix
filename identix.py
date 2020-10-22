@@ -154,7 +154,7 @@ def read_arguments(console: Console):
     scan_dir_list = arg_list.scandir
     for scan_dir in scan_dir_list:
         if not os.path.isdir(scan_dir):
-            console.exit_error("Invalid directory [{0}]".format(scan_dir))
+            console.exit_error(f"Invalid directory [{scan_dir}]")
 
     # get canonical path of each scan dir
     scan_dir_list = list(
@@ -168,9 +168,8 @@ def read_arguments(console: Console):
                 scan_dir_list[dest_index].find(scan_dir_list[source_index]) == 0
             ):
                 console.exit_error(
-                    "Scan directory [{0}] overlaps with [{1}]".format(
-                        scan_dir_list[source_index], scan_dir_list[dest_index]
-                    )
+                    f"Scan directory [{scan_dir_list[source_index]}] "
+                    f"overlaps with [{scan_dir_list[dest_index]}]"
                 )
 
     # ensure all [--include] file globs are valid and compile to regular expressions via fnmatch
@@ -179,9 +178,7 @@ def read_arguments(console: Console):
         for file_include_glob in arg_list.include:
             if not re.search(r"^[A-Za-z0-9_.*?!\-\[\]]+$", file_include_glob):
                 # invalid glob
-                console.exit_error(
-                    "Invalid file include glob [{0}]".format(file_include_glob)
-                )
+                console.exit_error(f"Invalid file include glob [{file_include_glob}]")
 
             # valid - add to list as a regular expression compiled from fnmatch
             file_include_regexp_list.add(
@@ -243,7 +240,7 @@ def scan_dir_list_recursive(
         file_group_size_collection: Dict[int, set],
     ):
         file_added_count = 0
-        console.progress("Scanning directory [{0}]".format(base_dir))
+        console.progress(f"Scanning directory [{base_dir}]")
 
         # fetch listing of files/dir in given base dir
         for filename_item in filename_list:
@@ -255,9 +252,7 @@ def scan_dir_list_recursive(
             if (file_item_size >= minimum_filesize) and is_file_glob_match(
                 filename_item
             ):
-                console.progress(
-                    "Found [{0}] [{1}]".format(filename_full_path, file_item_size)
-                )
+                console.progress(f"Found [{filename_full_path}] [{file_item_size}]")
 
                 # new file size index encountered?
                 if file_item_size not in file_group_size_collection:
@@ -304,7 +299,7 @@ def calc_file_group_size_checksum(
         checksum_collection: Dict[str, list] = {}
         for file_item in file_list:
             file_checksum = get_checksum(file_item)
-            console.progress("Checksum: [{0}] [{1}]".format(file_item, file_checksum))
+            console.progress(f"Checksum: [{file_item}] [{file_checksum}]")
 
             # new file checksum index encountered?
             if file_checksum not in checksum_collection:
@@ -369,7 +364,7 @@ def generate_report(
 
                     except IOError:
                         console.exit_error(
-                            "Unable to write report to [{0}]".format(report_file_path)
+                            f"Unable to write report to [{report_file_path}]"
                         )
 
                     if report_format_json:
@@ -396,13 +391,10 @@ def generate_report(
 
             else:
                 # write duplicate file group header
-                write_report_line(
-                    "{0} @ {1} bytes".format(file_checksum, file_item_size)
-                )
-
+                write_report_line(f"{file_checksum} @ {file_item_size} bytes")
                 for file_item in file_list:
                     # output identical file size/checksum items
-                    write_report_line("\t{0}".format(file_item))
+                    write_report_line(f"\t{file_item}")
 
     if report_file_path is not None:
         # if report to file close handle
@@ -413,7 +405,7 @@ def generate_report(
 
             # close file and output file written
             report_file_handle.close()
-            console.write("Report written to: {0}\n".format(report_file_path))
+            console.write(f"Report written to: {report_file_path}\n")
 
     else:
         # add final line break after report output
@@ -459,10 +451,10 @@ def main():
     )
 
     # write final duplicate counts
-    console.write("Files considered: {0}".format(total_file_count))
+    console.write(f"Files considered: {total_file_count}")
 
     console.write(
-        "Total duplicates: {0}".format(duplicate_file_count)
+        f"Total duplicates: {duplicate_file_count}"
         if (duplicate_file_count)
         else "No duplicates found"
     )
