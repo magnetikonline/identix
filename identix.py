@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
 
 import argparse
-import fcntl
 import fnmatch
 import hashlib
 import json
 import os
 import re
-import struct
+import shutil
 import sys
-import termios
 import time
 
 FILE_CHUNK_MD5_SIZE = 4096
@@ -20,12 +18,11 @@ REPORT_FILE_FORMAT_JSON_SEPARATORS = (",", ":")
 
 class Console:
     TERMINAL_CONNECTED = sys.stdout.isatty()
-
-    STDOUT_FILENO = sys.stdout.fileno()
-    STRUCT_PACK_ZERO_ZERO = struct.pack("HH", 0, 0)
     TERMINAL_SIZE_CACHE_SECONDS = 2
-
     CURSOR_START_LINE_CLEAR_RIGHT = "{0}{1}".format("\r", "\x1b[K")
+
+    DOT_GAP_MIN_LENGTH = 3
+    TEXT_SPLIT_MIN_LENGTH = 5
 
     class TERM_COLOR:
         RESET = "\x1b[0m"
@@ -34,78 +31,74 @@ class Console:
     progress_enabled = False
 
     _progress_active = False
-    _terminal_size = None
+    _last_term_size = (0, 0, 0)
 
-    def _get_terminal_size(self):
+    def _terminal_size(self):
         now_timestamp = int(time.time())
 
-        if (Console._terminal_size is None) or (
-            (Console._terminal_size[0] + Console.TERMINAL_SIZE_CACHE_SECONDS)
-            <= now_timestamp
+        if now_timestamp >= (
+            Console._last_term_size[0] + Console.TERMINAL_SIZE_CACHE_SECONDS
         ):
-            # (re-)fetch current terminal dimensions
-            data = fcntl.ioctl(
-                Console.STDOUT_FILENO, termios.TIOCGWINSZ, Console.STRUCT_PACK_ZERO_ZERO
-            )
+            # (re-)fetch terminal dimensions
+            size = shutil.get_terminal_size()
+            Console._last_term_size = (now_timestamp,) + size
+            return size
 
-            Console._terminal_size = (
-                now_timestamp,
-                struct.unpack("HH", data),  # stored as rows X columns
-            )
+        # return previously stored dimensions
+        return Console._last_term_size[1:]
 
-        return Console._terminal_size[1]
-
-    def _get_text_truncated(self, full_text, max_length):
-        full_text_length = len(full_text)
-        if full_text_length < max_length:
+    def _text_truncated(self, text: str, max_length: int):
+        if len(text) < max_length:
             # no need for truncation
-            return full_text
+            return text
 
         # determine dot gap length - 5% of max length, plus two space characters
         dot_gap = int(max_length * 0.05) + 2
-        if dot_gap < 3:
-            dot_gap = 3
+        if dot_gap < Console.DOT_GAP_MIN_LENGTH:
+            dot_gap = Console.DOT_GAP_MIN_LENGTH
 
         # calculate split size - if too small just truncate and bail
         split_size = int((max_length - dot_gap) / 2)
-        if split_size < 5:
-            return full_text[:max_length].strip()
+        if split_size < Console.TEXT_SPLIT_MIN_LENGTH:
+            return text[:max_length].strip()
 
-        # return [FIRST_CHUNK ... LAST_CHUNK]
+        # return [HEAD_CHUNK ... TAIL_CHUNK]
         return "{0} {1} {2}".format(
-            full_text[:split_size].strip(),
+            text[:split_size].strip(),
             +((max_length - (split_size * 2)) - 2) * ".",
-            full_text[0 - split_size :].strip(),
+            text[0 - split_size :].strip(),
         )
 
-    def _stdout_write_flush(self, text):
+    def _write_flush(self, text: str):
         sys.stdout.write(text)
         sys.stdout.flush()
 
-    def _progress_finish(self):
-        if Console._progress_active:
-            # clean up progress line from terminal, reset foreground color
-            Console._progress_active = False
-            self._stdout_write_flush(
-                Console.CURSOR_START_LINE_CLEAR_RIGHT + Console.TERM_COLOR.RESET
-            )
+    def _progress_end(self):
+        if not Console._progress_active:
+            return
 
-    def exit_error(self, message):
-        self._progress_finish()
-        sys.stderr.write("Error: {0}\n".format(message))
+        # clean up progress line from terminal, reset foreground color
+        Console._progress_active = False
+        self._write_flush(
+            Console.CURSOR_START_LINE_CLEAR_RIGHT + Console.TERM_COLOR.RESET
+        )
+
+    def exit_error(self, message: str):
+        self._progress_end()
+        print(f"Error: {message}", file=sys.stderr)
         sys.exit(1)
 
-    def write(self, text=""):
-        self._progress_finish()
+    def write(self, text: str = ""):
+        self._progress_end()
         print(text)
 
-    def progress(self, text):
-        # only display progress if connected to a terminal
+    def progress(self, text: str):
+        # only display if connected to terminal and enabled
         if (not Console.TERMINAL_CONNECTED) or (not Console.progress_enabled):
             return
 
-        # fetch terminal height and width
-        _, max_text_width = self._get_terminal_size()
+        # fetch terminal dimensions
+        max_width, _ = self._terminal_size()
         write_list = []
 
         if not Console._progress_active:
@@ -116,10 +109,10 @@ class Console:
         # write progress message
         write_list.append(
             Console.CURSOR_START_LINE_CLEAR_RIGHT
-            + self._get_text_truncated(text, max_text_width)
+            + self._text_truncated(text, max_width)
         )
 
-        self._stdout_write_flush("".join(write_list))
+        self._write_flush("".join(write_list))
 
 
 def read_arguments():
