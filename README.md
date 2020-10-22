@@ -1,5 +1,6 @@
 # identix
 Python utility which will recursively scan one or more given directories for duplicate files.
+
 - [What is a duplicate?](#what-is-a-duplicate)
 - [Usage](#usage)
 - [Examples](#examples)
@@ -64,11 +65,17 @@ Notes:
 Scan for duplicates greater than or equal to `2048` bytes in the directories of `/dupe/path/one` and `/dupe/path/two`:
 
 ```sh
-$ ./identix.py --min-size 2048 -- /dupe/path/one /dupe/path/two
+$ ./identix.py \
+	--min-size 2048 \
+		-- /dupe/path/one /dupe/path/two
 ```
 
 Find duplicates that match file globs of `*.jpg` and `*.png` in `/my/images`, write results to `/path/to/report.txt` and display processing progress to console:
 
 ```sh
-$ ./identix.py --include "*.jpg" "*.png" --report-file /path/to/report.txt --progress -- /my/images
+$ ./identix.py \
+	--include "*.jpg" "*.png" \
+	--progress \
+	--report-file /path/to/report.txt \
+		-- /my/images
 ```
