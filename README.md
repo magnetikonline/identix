@@ -7,8 +7,8 @@ Python utility which will recursively scan one or more given directories for dup
 
 ## What is a duplicate?
 Files are considered duplicate based on their identical binary representation:
-- Files as scanned are grouped by their file size to quickly rule out non-duplicates.
-- Grouped files then have their MD5 checksums calculated - those that match are duplicates.
+- Files are scanned and grouped by file size to quickly rule out non-duplicates.
+- Grouped files then have SHA-1 hashes calculated - those that match are duplicates.
 
 Files to consider can optionally be filtered based on:
 - One or more glob filespecs.
@@ -36,9 +36,9 @@ optional arguments:
   --min-size MIN_SIZE   minimum filesize considered
   --progress            show progress during file diffing
   --report-file REPORT_FILE
-                        output duplicate report to file, rather than console
+                        send duplicate report to file, rather than console
   --report-file-format {text,JSON}
-                        output format of duplicate report file
+                        format of duplicate report file
 ```
 
 Notes:
@@ -49,12 +49,12 @@ Notes:
 	```json
 	[
 		{
-			"md5": "xxxxx",
+			"sha-1": "xxxxx",
 			"size": 12345,
 			"fileList": ["/path/to/file","/path/to/another/file"]
 		},
 		{
-			"md5": "yyyyy",
+			"sha-1": "yyyyy",
 			"size": 6789,
 			"fileList": ["/path/to/yet/another/file","/one/more/file"]
 		},

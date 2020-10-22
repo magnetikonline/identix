@@ -11,7 +11,7 @@ import sys
 import time
 from typing import Dict, List, Set
 
-FILE_CHUNK_MD5_SIZE = 4096
+FILE_CHUNK_SHA1_SIZE = 8192
 REPORT_FILE_FORMAT_TEXT = "text"
 REPORT_FILE_FORMAT_JSON = "JSON"
 REPORT_FILE_FORMAT_JSON_SEPARATORS = (",", ":")
@@ -280,44 +280,43 @@ def scan_dir_list_recursive(
     return total_file_count, file_group_size_collection
 
 
-def calc_file_group_size_checksum(
+def calc_file_group_size_hash(
     console: Console, file_group_size_collection: Dict[int, set]
 ):
-    def get_checksum(file_path: str):
-        #  MD5 algo for a quick(ish) checksum
-        hasher = hashlib.md5()
-        with open(file_path, "rb") as fp:
-            chunk = fp.read(FILE_CHUNK_MD5_SIZE)
+    def file_sha1_hash(file_path: str):
+        hasher = hashlib.sha1()
+        with open(file_path, "rb") as fh:
+            chunk = fh.read(FILE_CHUNK_SHA1_SIZE)
             while chunk:
                 hasher.update(chunk)
-                chunk = fp.read(FILE_CHUNK_MD5_SIZE)
+                chunk = fh.read(FILE_CHUNK_SHA1_SIZE)
 
         return hasher.hexdigest()
 
-    def calc_checksum_file_list(file_list: Set[str]):
-        # calc checksums for each file in given list, grouped by identical checksums
-        checksum_collection: Dict[str, list] = {}
+    def calc_hash_file_list(file_list: Set[str]):
+        # calc SHA-1 hash for each file in given list, grouped by identical hashes
+        hash_collection: Dict[str, list] = {}
         for file_item in file_list:
-            file_checksum = get_checksum(file_item)
-            console.progress(f"Checksum: [{file_item}] [{file_checksum}]")
+            file_hash = file_sha1_hash(file_item)
+            console.progress(f"Hashed: [{file_item}] [{file_hash}]")
 
-            # new file checksum index encountered?
-            if file_checksum not in checksum_collection:
-                checksum_collection[file_checksum] = []
+            # new file hash index encountered?
+            if file_hash not in hash_collection:
+                hash_collection[file_hash] = []
 
-            # add file checksum to grouped collection list
-            checksum_collection[file_checksum].append(file_item)
+            # add file hash to grouped collection list
+            hash_collection[file_hash].append(file_item)
 
-        # return collection of duplicate files grouped by their checksum
+        # return collection of duplicate files grouped by their hash
         return {
-            file_checksum: file_list
-            for file_checksum, file_list in checksum_collection.items()
+            file_hash: file_list
+            for file_hash, file_list in hash_collection.items()
             if (len(file_list) > 1)
         }
 
-    # discover file group size collections broken down into checksum sub-groupings
+    # discover file group size collections broken down into hashed sub-groupings
     return {
-        file_item_size: calc_checksum_file_list(file_list)
+        file_item_size: calc_hash_file_list(file_list)
         for file_item_size, file_list in file_group_size_collection.items()
         if (len(file_list) > 1)
     }
@@ -325,7 +324,7 @@ def calc_file_group_size_checksum(
 
 def generate_report(
     console: Console,
-    file_group_checksum_collection: Dict[int, Dict[str, list]],
+    file_group_hash_collection: Dict[int, Dict[str, list]],
     report_file_path: str,
     report_format_json: bool,
 ):
@@ -343,10 +342,10 @@ def generate_report(
     # iterate over file item size collection
     for (
         file_item_size,
-        file_checksum_collection,
-    ) in file_group_checksum_collection.items():
-        # iterate over file checksum collection
-        for file_checksum, file_list in file_checksum_collection.items():
+        file_hash_collection,
+    ) in file_group_hash_collection.items():
+        # iterate over file hashes collection
+        for file_hash, file_list in file_hash_collection.items():
             if duplicate_file_count:
                 if report_format_json:
                     # next file duplicate JSON object item
@@ -380,7 +379,7 @@ def generate_report(
                 write_report_line(
                     json.dumps(
                         {
-                            "md5": file_checksum,
+                            "sha-1": file_hash,
                             "size": file_item_size,
                             "fileList": file_list,
                         },
@@ -391,9 +390,9 @@ def generate_report(
 
             else:
                 # write duplicate file group header
-                write_report_line(f"{file_checksum} @ {file_item_size} bytes")
+                write_report_line(f"{file_hash} @ {file_item_size} bytes")
                 for file_item in file_list:
-                    # output identical file size/checksum items
+                    # output identical file size & hashed items
                     write_report_line(f"\t{file_item}")
 
     if report_file_path is not None:
@@ -437,15 +436,15 @@ def main():
     if not total_file_count:
         console.exit_error("Unable to locate files for comparing")
 
-    # checksum all filesize grouped lists
-    file_group_checksum_collection = calc_file_group_size_checksum(
+    # SHA-1 hash all filesize grouped lists
+    file_group_hash_collection = calc_file_group_size_hash(
         console, file_group_size_collection
     )
 
     # generate duplicate report to screen or file
     duplicate_file_count = generate_report(
         console,
-        file_group_checksum_collection,
+        file_group_hash_collection,
         report_file_path,
         report_as_json,
     )
