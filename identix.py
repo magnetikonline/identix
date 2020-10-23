@@ -299,7 +299,7 @@ def calc_grouped_filesize_hash(
         hash_collection = {}
         for file_item in file_list:
             file_hash = file_sha1_hash(file_item)
-            console.progress(f"Hashed: [{file_item}] [{file_hash}]")
+            console.progress(f"Hashed [{file_item}] [{file_hash}]")
 
             # new file hash index encountered?
             if file_hash not in hash_collection:
