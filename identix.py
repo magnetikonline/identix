@@ -155,7 +155,7 @@ def read_arguments(
     # ensure all scan dirs exist
     for scan_dir in arg_list.scandir:
         if not os.path.isdir(scan_dir):
-            console.exit_error(f"Invalid directory [{scan_dir}]")
+            console.exit_error(f"invalid directory [{scan_dir}]")
 
     # get canonical path of each scan dir
     scan_dir_list = list(
@@ -169,7 +169,7 @@ def read_arguments(
                 scan_dir_list[dest_index].find(scan_dir_list[source_index]) == 0
             ):
                 console.exit_error(
-                    f"Scan directory [{scan_dir_list[source_index]}] "
+                    f"scan directory [{scan_dir_list[source_index]}] "
                     f"overlaps with [{scan_dir_list[dest_index]}]"
                 )
 
@@ -179,7 +179,7 @@ def read_arguments(
         for file_include_glob in arg_list.include:
             if not re.search(r"^[A-Za-z0-9_.*?!\-\[\]]+$", file_include_glob):
                 # invalid glob
-                console.exit_error(f"Invalid file include glob [{file_include_glob}]")
+                console.exit_error(f"invalid file include glob [{file_include_glob}]")
 
             # valid - add to list as a regular expression compiled from fnmatch
             file_include_regexp_list.add(
@@ -194,7 +194,7 @@ def read_arguments(
     # the [--report-file-format] option can only be used when writing report to file
     if (arg_list.report_file is None) and (arg_list.report_file_format is not None):
         console.exit_error(
-            "Argument [--report-file-format] only valid with [--report-file]"
+            "argument [--report-file-format] only valid with [--report-file]"
         )
 
     # return arguments
@@ -364,7 +364,7 @@ def generate_report(
 
                     except IOError:
                         console.exit_error(
-                            f"Unable to write report to [{report_file_path}]"
+                            f"unable to write report to [{report_file_path}]"
                         )
 
                     if report_format_json:
@@ -435,7 +435,7 @@ def main():
 
     # any files found? exit if none
     if not total_file_count:
-        console.exit_error("Unable to locate files for comparing")
+        console.exit_error("unable to locate files for comparing")
 
     # SHA-1 hash all filesize grouped lists
     grouped_file_hash_collection = calc_grouped_filesize_hash(
