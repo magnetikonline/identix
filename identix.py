@@ -9,7 +9,7 @@ import re
 import shutil
 import sys
 import time
-from typing import Dict, List, Set
+from typing import Dict, List, Optional, Set, Tuple
 
 FILE_CHUNK_SHA1_SIZE = 8192
 REPORT_FILE_FORMAT_TEXT = "text"
@@ -34,7 +34,7 @@ class Console:
     _progress_active = False
     _last_term_size = (0, 0, 0)
 
-    def _terminal_size(self):
+    def _terminal_size(self) -> Tuple[int, int]:
         now_timestamp = int(time.time())
 
         if now_timestamp >= (
@@ -45,10 +45,10 @@ class Console:
             Console._last_term_size = (now_timestamp,) + size
             return size
 
-        # return previously stored dimensions
-        return Console._last_term_size[1:]
+        # return previously stored cols and rows
+        return (Console._last_term_size[1], Console._last_term_size[2])
 
-    def _text_truncated(self, text: str, max_length: int):
+    def _text_truncated(self, text: str, max_length: int) -> str:
         if len(text) < max_length:
             # no need for truncation
             return text
@@ -70,11 +70,11 @@ class Console:
             text[0 - split_size :].strip(),
         )
 
-    def _write_flush(self, text: str):
+    def _write_flush(self, text: str) -> None:
         sys.stdout.write(text)
         sys.stdout.flush()
 
-    def _progress_end(self):
+    def _progress_end(self) -> None:
         if not Console._progress_active:
             return
 
@@ -84,16 +84,16 @@ class Console:
             Console.CURSOR_START_LINE_CLEAR_RIGHT + Console.TERM_COLOR.RESET
         )
 
-    def exit_error(self, message: str):
+    def exit_error(self, message: str) -> None:
         self._progress_end()
         print(f"Error: {message}", file=sys.stderr)
         sys.exit(1)
 
-    def write(self, text: str = ""):
+    def write(self, text: str = "") -> None:
         self._progress_end()
         print(text)
 
-    def progress(self, text: str):
+    def progress(self, text: str) -> None:
         # only display if connected to terminal and enabled
         if (not Console.TERMINAL_CONNECTED) or (not Console.progress_enabled):
             return
@@ -116,7 +116,9 @@ class Console:
         self._write_flush("".join(write_list))
 
 
-def read_arguments(console: Console):
+def read_arguments(
+    console: Console,
+) -> Tuple[Set[str], Set[re.Pattern], int, bool, Optional[str], bool]:
     # create argument parser
     parser = argparse.ArgumentParser(
         description="Recursively scan one or more directories for duplicate files."
@@ -151,8 +153,7 @@ def read_arguments(console: Console):
     arg_list = parser.parse_args()
 
     # ensure all scan dirs exist
-    scan_dir_list = arg_list.scandir
-    for scan_dir in scan_dir_list:
+    for scan_dir in arg_list.scandir:
         if not os.path.isdir(scan_dir):
             console.exit_error(f"Invalid directory [{scan_dir}]")
 
@@ -215,10 +216,10 @@ def read_arguments(console: Console):
 
 def scan_dir_list_recursive(
     console: Console,
-    scan_dir_list: List[str],
+    scan_dir_list: Set[str],
     file_include_regexp_list: Set[re.Pattern],
     minimum_filesize: int,
-):
+) -> Tuple[int, Dict[int, Set[str]]]:
     # setup file match glob function
     if file_include_regexp_list:
 
@@ -237,7 +238,7 @@ def scan_dir_list_recursive(
     def process_file_list(
         base_dir: str,
         filename_list: List[str],
-        file_group_size_collection: Dict[int, set],
+        grouped_filesize_collection: Dict[int, Set[str]],
     ):
         file_added_count = 0
         console.progress(f"Scanning directory [{base_dir}]")
@@ -245,21 +246,21 @@ def scan_dir_list_recursive(
         # fetch listing of files/dir in given base dir
         for filename_item in filename_list:
             # build full path to file and get filesize
-            filename_full_path = "/".join([base_dir, filename_item])
-            file_item_size = os.path.getsize(filename_full_path)
+            filename_full_path = os.path.join(base_dir, filename_item)
+            item_filesize = os.path.getsize(filename_full_path)
 
             # is file larger than minimum file size and meet include glob criteria?
-            if (file_item_size >= minimum_filesize) and is_file_glob_match(
+            if (item_filesize >= minimum_filesize) and is_file_glob_match(
                 filename_item
             ):
-                console.progress(f"Found [{filename_full_path}] [{file_item_size}]")
+                console.progress(f"Found [{filename_full_path}] [{item_filesize}]")
 
                 # new file size index encountered?
-                if file_item_size not in file_group_size_collection:
-                    file_group_size_collection[file_item_size] = set()
+                if item_filesize not in grouped_filesize_collection:
+                    grouped_filesize_collection[item_filesize] = set()
 
                 # add file item to grouped size set
-                file_group_size_collection[file_item_size].add(filename_full_path)
+                grouped_filesize_collection[item_filesize].add(filename_full_path)
                 file_added_count += 1
 
         # return count of files added in this pass
@@ -267,22 +268,22 @@ def scan_dir_list_recursive(
 
     # process each scan dir given in list
     total_file_count = 0
-    file_group_size_collection: Dict[int, set] = {}
+    grouped_filesize_collection = {}
 
     for scan_dir in scan_dir_list:
         # open scan_dir, process filename_list
         for base_dir, _, filename_list in os.walk(scan_dir):
             total_file_count += process_file_list(
-                base_dir, filename_list, file_group_size_collection
+                base_dir, filename_list, grouped_filesize_collection
             )
 
     # return total file count and files grouped by size
-    return total_file_count, file_group_size_collection
+    return total_file_count, grouped_filesize_collection
 
 
-def calc_file_group_size_hash(
-    console: Console, file_group_size_collection: Dict[int, set]
-):
+def calc_grouped_filesize_hash(
+    console: Console, grouped_filesize_collection: Dict[int, Set[str]]
+) -> Dict[int, Dict[str, Set[str]]]:
     def file_sha1_hash(file_path: str):
         hasher = hashlib.sha1()
         with open(file_path, "rb") as fh:
@@ -293,19 +294,19 @@ def calc_file_group_size_hash(
 
         return hasher.hexdigest()
 
-    def calc_hash_file_list(file_list: Set[str]):
+    def calc_hash_file_list(file_list: Set[str]) -> Dict[str, Set[str]]:
         # calc SHA-1 hash for each file in given list, grouped by identical hashes
-        hash_collection: Dict[str, list] = {}
+        hash_collection = {}
         for file_item in file_list:
             file_hash = file_sha1_hash(file_item)
             console.progress(f"Hashed: [{file_item}] [{file_hash}]")
 
             # new file hash index encountered?
             if file_hash not in hash_collection:
-                hash_collection[file_hash] = []
+                hash_collection[file_hash] = set()
 
             # add file hash to grouped collection list
-            hash_collection[file_hash].append(file_item)
+            hash_collection[file_hash].add(file_item)
 
         # return collection of duplicate files grouped by their hash
         return {
@@ -316,18 +317,18 @@ def calc_file_group_size_hash(
 
     # discover file group size collections broken down into hashed sub-groupings
     return {
-        file_item_size: calc_hash_file_list(file_list)
-        for file_item_size, file_list in file_group_size_collection.items()
+        item_filesize: calc_hash_file_list(file_list)
+        for item_filesize, file_list in grouped_filesize_collection.items()
         if (len(file_list) > 1)
     }
 
 
 def generate_report(
     console: Console,
-    file_group_hash_collection: Dict[int, Dict[str, list]],
-    report_file_path: str,
+    grouped_file_hash_collection: Dict[int, Dict[str, Set[str]]],
+    report_file_path: Optional[str],
     report_format_json: bool,
-):
+) -> int:
     report_file_handle = None
     duplicate_file_count = 0
 
@@ -343,7 +344,7 @@ def generate_report(
     for (
         file_item_size,
         file_hash_collection,
-    ) in file_group_hash_collection.items():
+    ) in grouped_file_hash_collection.items():
         # iterate over file hashes collection
         for file_hash, file_list in file_hash_collection.items():
             if duplicate_file_count:
@@ -428,7 +429,7 @@ def main():
     ) = read_arguments(console)
 
     # scan source directories for files to compare, grouped by filesize
-    total_file_count, file_group_size_collection = scan_dir_list_recursive(
+    total_file_count, grouped_filesize_collection = scan_dir_list_recursive(
         console, scan_dir_list, file_include_regexp_list, minimum_filesize
     )
 
@@ -437,14 +438,14 @@ def main():
         console.exit_error("Unable to locate files for comparing")
 
     # SHA-1 hash all filesize grouped lists
-    file_group_hash_collection = calc_file_group_size_hash(
-        console, file_group_size_collection
+    grouped_file_hash_collection = calc_grouped_filesize_hash(
+        console, grouped_filesize_collection
     )
 
     # generate duplicate report to screen or file
     duplicate_file_count = generate_report(
         console,
-        file_group_hash_collection,
+        grouped_file_hash_collection,
         report_file_path,
         report_as_json,
     )
