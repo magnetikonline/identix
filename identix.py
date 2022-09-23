@@ -220,19 +220,14 @@ def scan_dir_list_recursive(
     file_include_regexp_list: Set[re.Pattern],
     minimum_filesize: int,
 ) -> Tuple[int, Dict[int, Set[str]]]:
-    # setup file match glob function
-    if file_include_regexp_list:
-
-        def is_file_glob_match(filename: str):
-            # at least one file_include_regexp_list item must match the filename
-            # note: using .match() here, as what's expected to be used with fnmatch.translate()
-            return any(regexp.match(filename) for regexp in file_include_regexp_list)
-
-    else:
-
-        def is_file_glob_match(filename: str):
+    def is_file_glob_match(filename: str):
+        if not file_include_regexp_list:
             # always a match if no globs defined
             return True
+
+        # at least one file_include_regexp_list item must match the filename
+        # note: using .match() here, as what's expected to be used with fnmatch.translate()
+        return any(regexp.match(filename) for regexp in file_include_regexp_list)
 
     # setup directory processor - called recursively for each sub-dir
     def process_file_list(
