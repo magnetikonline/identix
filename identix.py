@@ -9,7 +9,7 @@ import re
 import shutil
 import sys
 import time
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Optional
 
 FILE_CHUNK_SHA1_SIZE = 8192
 REPORT_FILE_FORMAT_TEXT = "text"
@@ -34,7 +34,7 @@ class Console:
     _progress_active = False
     _last_term_size = (0, 0, 0)
 
-    def _terminal_size(self) -> Tuple[int, int]:
+    def _terminal_size(self) -> tuple[int, int]:
         now_timestamp = int(time.time())
 
         if now_timestamp >= (
@@ -118,7 +118,7 @@ class Console:
 
 def read_arguments(
     console: Console,
-) -> Tuple[Set[str], Set[re.Pattern], int, bool, Optional[str], bool]:
+) -> tuple[set[str], set[re.Pattern], int, bool, Optional[str], bool]:
     # create argument parser
     parser = argparse.ArgumentParser(
         description="Recursively scan one or more directories for duplicate files."
@@ -216,10 +216,10 @@ def read_arguments(
 
 def scan_dir_list_recursive(
     console: Console,
-    scan_dir_list: Set[str],
-    file_include_regexp_list: Set[re.Pattern],
+    scan_dir_list: set[str],
+    file_include_regexp_list: set[re.Pattern],
     minimum_filesize: int,
-) -> Tuple[int, Dict[int, Set[str]]]:
+) -> tuple[int, dict[int, set[str]]]:
     def is_file_glob_match(filename: str):
         if not file_include_regexp_list:
             # always a match if no globs defined
@@ -232,8 +232,8 @@ def scan_dir_list_recursive(
     # setup directory processor - called recursively for each sub-dir
     def process_file_list(
         base_dir: str,
-        filename_list: List[str],
-        grouped_filesize_collection: Dict[int, Set[str]],
+        filename_list: list[str],
+        grouped_filesize_collection: dict[int, set[str]],
     ):
         file_added_count = 0
         console.progress(f"Scanning directory [{base_dir}]")
@@ -277,8 +277,8 @@ def scan_dir_list_recursive(
 
 
 def calc_grouped_filesize_hash(
-    console: Console, grouped_filesize_collection: Dict[int, Set[str]]
-) -> Dict[int, Dict[str, Set[str]]]:
+    console: Console, grouped_filesize_collection: dict[int, set[str]]
+) -> dict[int, dict[str, set[str]]]:
     def file_sha1_hash(file_path: str):
         hasher = hashlib.sha1()
         with open(file_path, "rb") as fh:
@@ -289,7 +289,7 @@ def calc_grouped_filesize_hash(
 
         return hasher.hexdigest()
 
-    def calc_hash_file_list(file_list: Set[str]) -> Dict[str, Set[str]]:
+    def calc_hash_file_list(file_list: set[str]) -> dict[str, set[str]]:
         # calc SHA-1 hash for each file in given list, grouped by identical hashes
         hash_collection = {}
         for file_item in file_list:
@@ -320,7 +320,7 @@ def calc_grouped_filesize_hash(
 
 def generate_report(
     console: Console,
-    grouped_file_hash_collection: Dict[int, Dict[str, Set[str]]],
+    grouped_file_hash_collection: dict[int, dict[str, set[str]]],
     report_file_path: Optional[str],
     report_format_json: bool,
 ) -> int:
