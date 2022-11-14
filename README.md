@@ -48,16 +48,16 @@ Notes:
 
 	```json
 	[
-		{
-			"sha-1": "xxxxx",
-			"size": 12345,
-			"fileList": ["/path/to/file","/path/to/another/file"]
-		},
-		{
-			"sha-1": "yyyyy",
-			"size": 6789,
-			"fileList": ["/path/to/yet/another/file","/one/more/file"]
-		},
+	  {
+	    "sha-1": "xxxxx",
+	    "size": 12345,
+	    "fileList": ["/path/to/file","/path/to/another/file"]
+	  },
+	  {
+	    "sha-1": "yyyyy",
+	    "size": 6789,
+	    "fileList": ["/path/to/yet/another/file","/one/more/file"]
+	  },
 	]
 	```
 
@@ -66,16 +66,16 @@ Scan for duplicates greater than or equal to `2048` bytes in the directories of 
 
 ```sh
 $ ./identix.py \
-	--min-size 2048 \
-		-- /dupe/path/one /dupe/path/two
+  --min-size 2048 \
+    -- /dupe/path/one /dupe/path/two
 ```
 
 Find duplicates that match file globs of `*.jpg` and `*.png` in `/my/images`, write results to `/path/to/report.txt` and display processing progress to console:
 
 ```sh
 $ ./identix.py \
-	--include "*.jpg" "*.png" \
-	--progress \
-	--report-file /path/to/report.txt \
-		-- /my/images
+  --include "*.jpg" "*.png" \
+  --progress \
+  --report-file /path/to/report.txt \
+    -- /my/images
 ```
