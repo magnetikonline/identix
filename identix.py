@@ -9,7 +9,7 @@ import re
 import shutil
 import sys
 import time
-from typing import Optional
+from typing import Optional, TextIO
 
 FILE_CHUNK_SHA1_SIZE = 8192
 REPORT_FILE_FORMAT_TEXT = "text"
@@ -162,7 +162,7 @@ def read_arguments(
         map(lambda scandir: os.path.realpath(scandir), arg_list.scandir)
     )
 
-    # ensure each given scan directory does not overlap
+    # ensure each requested scan directory does not overlap
     for source_index in range(len(scan_dir_list)):
         for dest_index in range(source_index + 1, len(scan_dir_list)):
             if (scan_dir_list[source_index].find(scan_dir_list[dest_index]) == 0) or (
@@ -229,7 +229,7 @@ def scan_dir_list_recursive(
         # note: using .match() here, as what's expected to be used with fnmatch.translate()
         return any(regexp.match(filename) for regexp in file_include_regexp_list)
 
-    # setup directory processor - called recursively for each sub-dir
+    # directory processor - called recursively for each sub-dir
     def process_file_list(
         base_dir: str,
         filename_list: list[str],
@@ -324,14 +324,13 @@ def generate_report(
     report_file_path: Optional[str],
     report_format_json: bool,
 ) -> int:
-    report_file_handle = None
+    report_file_handle: Optional[TextIO] = None
     duplicate_file_count = 0
 
     def write_report_line(report_line: str = "", line_feed: bool = True):
         # write line either to console, or file
-        if report_file_path is None:
+        if report_file_handle is None:
             console.write(report_line)
-
         else:
             report_file_handle.write(report_line + ("\n" if line_feed else ""))
 
@@ -346,7 +345,6 @@ def generate_report(
                 if report_format_json:
                     # next file duplicate JSON object item
                     write_report_line(",")
-
                 else:
                     # add line break between previous duplicate file grouping
                     write_report_line()
@@ -391,16 +389,15 @@ def generate_report(
                     # output identical file size & hashed items
                     write_report_line(f"\t{file_item}")
 
-    if report_file_path is not None:
-        # if report to file close handle
-        if report_file_handle is not None:
-            if report_format_json:
-                # close JSON array
-                write_report_line("\n]")
+    if report_file_handle is not None:
+        # report to file mode
+        if report_format_json:
+            # close out JSON array
+            write_report_line("\n]")
 
-            # close file and output file written
-            report_file_handle.close()
-            console.write(f"Report written to: {report_file_path}\n")
+        # close file and output the file path written
+        report_file_handle.close()
+        console.write(f"Report written to: {report_file_path}\n")
 
     else:
         # add final line break after report output
