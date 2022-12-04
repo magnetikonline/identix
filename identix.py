@@ -375,7 +375,7 @@ def generate_report(
                         {
                             "sha-1": file_hash,
                             "size": file_item_size,
-                            "fileList": file_list,
+                            "fileList": list(file_list),
                         },
                         separators=REPORT_FILE_FORMAT_JSON_SEPARATORS,
                     ),
