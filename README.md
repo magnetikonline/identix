@@ -1,4 +1,5 @@
 # identix
+
 Python utility which will recursively scan one or more given directories for duplicate files.
 
 - [What is a duplicate?](#what-is-a-duplicate)
@@ -6,11 +7,14 @@ Python utility which will recursively scan one or more given directories for dup
 - [Examples](#examples)
 
 ## What is a duplicate?
+
 Files are considered duplicate based on their identical binary representation:
+
 - Files are scanned and grouped by file size to quickly rule out non-duplicates.
 - Grouped files then have SHA-1 hashes calculated - those that match are duplicates.
 
 Files to consider can optionally be filtered based on:
+
 - One or more glob filespecs.
 - Minimum file size.
 
@@ -42,6 +46,7 @@ optional arguments:
 ```
 
 Notes:
+
 - The `--include` argument evaluates *filename only*, so expects globs such as `*.jpg` or `image*.png`.
 - Omitting `--report-file` output file argument will display results directly on the console
 - Option `--report-file-format` enables `--report-file` as `JSON` - format example:
@@ -62,6 +67,7 @@ Notes:
 	```
 
 ## Examples
+
 Scan for duplicates greater than or equal to `2048` bytes in the directories of `/dupe/path/one` and `/dupe/path/two`:
 
 ```sh
