@@ -9,7 +9,7 @@ import re
 import shutil
 import sys
 import time
-from typing import Optional, TextIO
+from typing import TextIO
 
 FILE_CHUNK_SHA1_SIZE = 8192
 REPORT_FILE_FORMAT_TEXT = "text"
@@ -118,7 +118,7 @@ class Console:
 
 def read_arguments(
     console: Console,
-) -> tuple[set[str], set[re.Pattern], int, bool, Optional[str], bool]:
+) -> tuple[set[str], set[re.Pattern], int, bool, str | None, bool]:
     # create argument parser
     parser = argparse.ArgumentParser(
         description="Recursively scan one or more directories for duplicate files."
@@ -203,9 +203,11 @@ def read_arguments(
         file_include_regexp_list,
         minimum_filesize,
         arg_list.progress,
-        os.path.realpath(arg_list.report_file)
-        if (arg_list.report_file is not None)
-        else None,
+        (
+            os.path.realpath(arg_list.report_file)
+            if (arg_list.report_file is not None)
+            else None
+        ),
         (
             False
             if (arg_list.report_file_format is None)
@@ -321,10 +323,10 @@ def calc_grouped_filesize_hash(
 def generate_report(
     console: Console,
     grouped_file_hash_collection: dict[int, dict[str, set[str]]],
-    report_file_path: Optional[str],
+    report_file_path: str | None,
     report_format_json: bool,
 ) -> int:
-    report_file_handle: Optional[TextIO] = None
+    report_file_handle: TextIO | None = None
     duplicate_file_count = 0
 
     def write_report_line(report_line: str = "", line_feed: bool = True):
